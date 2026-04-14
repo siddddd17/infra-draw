@@ -32,8 +32,15 @@ class InfraDrawConfig:
 
     @classmethod
     def from_cli(cls, **kwargs: object) -> "InfraDrawConfig":
-        """Build config from Click option dict, falling back to env vars."""
-        regions_raw: str = str(kwargs.get("region", os.getenv("INFRA_DRAW_REGION", "us-east-1")))
+        """Build config from Click option dict, falling back to env vars and saved config."""
+        from infra_draw.core.saved_config import get_profile, get_region
+
+        regions_raw: str = str(
+            kwargs.get("region")
+            or os.getenv("INFRA_DRAW_REGION")
+            or get_region()
+            or "us-east-1"
+        )
         regions = [r.strip() for r in regions_raw.split(",") if r.strip()]
 
         exclude_tags: Dict[str, str] = {}
@@ -42,11 +49,17 @@ class InfraDrawConfig:
                 k, v = pair.split("=", 1)
                 exclude_tags[k.strip()] = v.strip()
 
+        profile = (
+            kwargs.get("profile")
+            or os.getenv("AWS_PROFILE")
+            or get_profile()
+        )
+
         return cls(
             provider=str(kwargs.get("provider", os.getenv("INFRA_DRAW_PROVIDER", "aws"))),
             regions=regions,
             all_regions=bool(kwargs.get("all_regions", False)),
-            profile=kwargs.get("profile") or os.getenv("AWS_PROFILE"),  # type: ignore[arg-type]
+            profile=profile,  # type: ignore[arg-type]
             resource_types=list(kwargs.get("resources") or []),
             exclude_tags=exclude_tags,
             output_dir=Path(str(kwargs.get("output_dir", os.getenv("INFRA_DRAW_OUTPUT", "output")))),

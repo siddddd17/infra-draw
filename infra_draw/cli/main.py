@@ -55,7 +55,21 @@ def cli(ctx: click.Context, **kwargs: object) -> None:
 
     if ctx.invoked_subcommand is None:
         show_banner()
-        click.echo(ctx.get_help())
+        import sys
+        if sys.stdin.isatty():
+            from infra_draw.cli.setup_wizard import resume_from_saved
+            resume_from_saved(console)
+        else:
+            click.echo(ctx.get_help())
+
+
+@click.command()
+@click.option("--reset", is_flag=True, help="Clear saved configuration and start fresh.")
+def setup(reset: bool) -> None:
+    """Interactive setup wizard — configure provider, credentials, and preferences."""
+    show_banner()
+    from infra_draw.cli.setup_wizard import SetupWizard
+    SetupWizard(console).run(reset=reset)
 
 
 # Register sub-commands ------------------------------------------------
@@ -66,3 +80,4 @@ from infra_draw.cli.version import version  # noqa: E402
 cli.add_command(generate)
 cli.add_command(shell)
 cli.add_command(version)
+cli.add_command(setup)
