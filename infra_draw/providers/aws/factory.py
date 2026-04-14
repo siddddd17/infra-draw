@@ -10,8 +10,9 @@ from botocore.exceptions import ClientError, NoCredentialsError, PartialCredenti
 
 from infra_draw.core.config import InfraDrawConfig
 from infra_draw.core.exceptions import CredentialsError, PermissionError_
-from infra_draw.core.provider import CloudProvider, DiagramBuilder, ProviderFactory, ResourceFetcher
+from infra_draw.core.provider import CloudProvider, DiagramBuilder, GraphBuilder, ProviderFactory, ResourceFetcher
 from infra_draw.providers.aws.diagram_builder import AWSDiagramBuilder
+from infra_draw.providers.aws.graph_builder import AWSGraphBuilder
 from infra_draw.providers.aws.fetchers.compute import ComputeFetcher
 from infra_draw.providers.aws.fetchers.database import DatabaseFetcher
 from infra_draw.providers.aws.fetchers.network import NetworkFetcher
@@ -89,3 +90,6 @@ class AWSProvider(CloudProvider):
 
     def get_diagram_builder(self) -> DiagramBuilder:
         return AWSDiagramBuilder()
+
+    def get_graph_builder(self) -> GraphBuilder:
+        return AWSGraphBuilder()

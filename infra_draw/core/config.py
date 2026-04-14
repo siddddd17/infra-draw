@@ -58,6 +58,13 @@ class InfraDrawConfig:
             max_workers=int(kwargs.get("max_workers", os.getenv("INFRA_DRAW_WORKERS", "10"))),
         )
 
+    IMAGE_FORMATS = {"png", "svg", "pdf"}
+    DATA_FORMATS = {"json", "drawio", "mermaid", "plantuml", "terraform"}
+
+    @property
+    def is_data_format(self) -> bool:
+        return self.output_format in self.DATA_FORMATS
+
     @property
     def available_resource_types(self) -> Set[str]:
         return {

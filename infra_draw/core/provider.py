@@ -41,6 +41,21 @@ class DiagramBuilder(ABC):
         """Return the path of the generated image file."""
 
 
+class GraphBuilder(ABC):
+    """Turns fetched resource dicts into an ``InfraGraph``."""
+
+    @abstractmethod
+    def build(
+        self,
+        resources: Dict[str, List[Dict[str, Any]]],
+        config: InfraDrawConfig,
+        *,
+        region: str = "",
+        vpc_id: str | None = None,
+    ) -> Any:
+        """Return an ``InfraGraph`` instance."""
+
+
 class CloudProvider(ABC):
     """Facade that wires up fetchers + builder for one cloud."""
 
@@ -53,6 +68,13 @@ class CloudProvider(ABC):
 
     @abstractmethod
     def get_diagram_builder(self) -> DiagramBuilder: ...
+
+    def get_graph_builder(self) -> GraphBuilder:
+        """Return a builder that produces ``InfraGraph`` instances.
+
+        Override in providers that support data-format exports.
+        """
+        raise NotImplementedError(f"Graph builder not available for {self.name}")
 
     @abstractmethod
     def list_regions(self, config: InfraDrawConfig) -> List[str]:

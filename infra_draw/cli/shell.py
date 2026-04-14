@@ -84,7 +84,7 @@ def _print_help() -> None:
     table.add_row("generate", "Fetch resources and create diagrams with current settings")
     table.add_row("set provider <aws|azure|gcp>", "Change cloud provider")
     table.add_row("set region <name>", "Change target region")
-    table.add_row("set format <png|svg|pdf>", "Change output format")
+    table.add_row("set format <png|svg|pdf|json|drawio|mermaid|plantuml|terraform>", "Change output format")
     table.add_row("set output-dir <path>", "Change output directory")
     table.add_row("set profile <name>", "Change AWS CLI profile")
     table.add_row("set per-vpc <on|off>", "Toggle per-VPC diagrams")
@@ -129,8 +129,9 @@ def _handle_set(state: ShellState, parts: List[str]) -> None:
     elif key == "region":
         state.region = value
     elif key == "format":
-        if value not in ("png", "svg", "pdf"):
-            console.print("[red]Valid formats: png, svg, pdf[/red]")
+        valid = ("png", "svg", "pdf", "json", "drawio", "mermaid", "plantuml", "terraform")
+        if value not in valid:
+            console.print(f"[red]Valid formats: {', '.join(valid)}[/red]")
             return
         state.fmt = value
     elif key in ("output-dir", "output_dir"):
@@ -177,13 +178,14 @@ def _handle_generate(state: ShellState) -> None:
     from infra_draw.core.config import InfraDrawConfig
     from infra_draw.utils.graphviz_check import ensure_graphviz
 
-    try:
-        ensure_graphviz()
-    except Exception as exc:
-        console.print(f"[bold red]{exc}[/bold red]")
-        return
-
     config = InfraDrawConfig.from_cli(**state.to_cli_kwargs())
+
+    if not config.is_data_format:
+        try:
+            ensure_graphviz()
+        except Exception as exc:
+            console.print(f"[bold red]{exc}[/bold red]")
+            return
 
     flat: list[str] = []
     for entry in config.resource_types:
@@ -193,22 +195,26 @@ def _handle_generate(state: ShellState) -> None:
     try:
         import infra_draw.providers  # noqa: F401
         from infra_draw.core.provider import ProviderFactory
-        from infra_draw.diagram.builder import fetch_all, generate_diagrams
+        from infra_draw.diagram.builder import fetch_all, generate_diagrams, generate_exports
 
         provider = ProviderFactory.get(config.provider, config)
         console.print("[cyan]Validating credentials …[/cyan]")
         provider.validate_credentials(config)
 
         t0 = time.monotonic()
-        files = generate_diagrams(provider, config)
+        if config.is_data_format:
+            files = generate_exports(provider, config)
+        else:
+            files = generate_diagrams(provider, config)
 
         # Cache fetched resources for `list resources`
         fetchers = provider.get_fetchers(config)
         state._last_resources = fetch_all(fetchers, config)
 
+        label = "export(s)" if config.is_data_format else "diagram(s)"
         elapsed = time.monotonic() - t0
         if files:
-            console.print(f"[bold green]Done![/bold green]  {len(files)} diagram(s) in {elapsed:.1f}s")
+            console.print(f"[bold green]Done![/bold green]  {len(files)} {label} in {elapsed:.1f}s")
             for f in files:
                 console.print(f"  {f}")
         else:

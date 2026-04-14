@@ -36,7 +36,11 @@ def show_banner() -> None:
     help="Resource types to include (e.g. ec2,vpc). Omit for all.",
 )
 @click.option("--output-dir", "-o", default="output", help="Directory for generated files.")
-@click.option("--format", "-f", "fmt", default="png", type=click.Choice(["png", "svg", "pdf"]), help="Image format.")
+@click.option(
+    "--format", "-f", "fmt", default="png",
+    type=click.Choice(["png", "svg", "pdf", "json", "drawio", "mermaid", "plantuml", "terraform"]),
+    help="Output format (image or data export).",
+)
 @click.option("--per-vpc", is_flag=True, help="One diagram per VPC.")
 @click.option("--show-details", is_flag=True, help="Show IPs, instance types, etc.")
 @click.option("--exclude-tags", multiple=True, help="key=value pairs to exclude.")
