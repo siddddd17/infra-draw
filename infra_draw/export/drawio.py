@@ -8,12 +8,15 @@ so the output renders without custom stencil packs.
 from __future__ import annotations
 
 import html
+import logging
 from pathlib import Path
 from typing import Dict, List, Tuple
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from infra_draw.export import Exporter, register_exporter
 from infra_draw.export.graph import GraphCluster, GraphNode, InfraGraph
+
+logger = logging.getLogger(__name__)
 
 # Layout constants
 NODE_W, NODE_H = 120, 60
@@ -146,7 +149,8 @@ def _build_xml(graph: InfraGraph) -> bytes:
     SubElement(root, "mxCell", id="1", parent="0")
 
     cell_counter = 2
-    id_map: Dict[str, str] = {}
+    cluster_cell_map: Dict[str, str] = {}
+    node_cell_map: Dict[str, str] = {}
 
     def _next_id() -> str:
         nonlocal cell_counter
@@ -157,7 +161,7 @@ def _build_xml(graph: InfraGraph) -> bytes:
     # Clusters
     for cluster in graph.clusters:
         cid = _next_id()
-        id_map[cluster.id] = cid
+        cluster_cell_map[cluster.id] = cid
         cx, cy, cw, ch = layout.cluster_geom(cluster.id)
         cell = SubElement(root, "mxCell", {
             "id": cid, "value": html.escape(cluster.label),
@@ -172,8 +176,7 @@ def _build_xml(graph: InfraGraph) -> bytes:
     # Nodes
     for node in graph.nodes:
         nid = _next_id()
-        id_map[node.id] = nid
-        parent = id_map.get(node.cluster_id, "1") if node.cluster_id else "1"
+        parent = cluster_cell_map.get(node.cluster_id, "1") if node.cluster_id else "1"
         nx, ny = layout.node_pos(node.id)
 
         if node.cluster_id:
@@ -191,13 +194,18 @@ def _build_xml(graph: InfraGraph) -> bytes:
             "width": str(NODE_W), "height": str(NODE_H),
             "as": "geometry",
         })
+        node_cell_map[node.id] = nid
 
     # Edges
     for edge in graph.edges:
         eid = _next_id()
-        src = id_map.get(edge.source, "")
-        tgt = id_map.get(edge.target, "")
+        src = node_cell_map.get(edge.source, "")
+        tgt = node_cell_map.get(edge.target, "")
         if not src or not tgt:
+            logger.debug("Skipping Draw.io edge %s due to missing endpoint", edge.id)
+            continue
+        if src == tgt:
+            logger.debug("Skipping Draw.io self-referencing edge %s", edge.id)
             continue
         cell = SubElement(root, "mxCell", {
             "id": eid,

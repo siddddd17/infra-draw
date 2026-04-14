@@ -347,6 +347,24 @@ class TestDrawioExporter:
             assert len(vertices) > 0
             assert len(edges) > 0
 
+    def test_no_self_reference_parent(self):
+        builder = AWSGraphBuilder()
+        graph = builder.build(_sample_resources(), _cfg(), region="us-east-1")
+        exporter = get_exporter("drawio")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "test")
+            result = exporter.export(graph, path)
+
+            with open(result, "rb") as f:
+                root = fromstring(f.read())
+
+            for cell in root.findall(".//mxCell"):
+                cid = cell.get("id")
+                parent = cell.get("parent")
+                if cid and parent:
+                    assert cid != parent
+
 
 # ======================================================================
 # Mermaid Exporter
