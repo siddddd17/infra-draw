@@ -63,7 +63,7 @@ class InfraDrawConfig:
             resource_types=list(kwargs.get("resources") or []),
             exclude_tags=exclude_tags,
             output_dir=Path(str(kwargs.get("output_dir", os.getenv("INFRA_DRAW_OUTPUT", "output")))),
-            output_format=str(kwargs.get("format", "drawio")),
+            output_format=str(kwargs.get("fmt") or kwargs.get("format") or "drawio"),
             per_vpc=bool(kwargs.get("per_vpc", False)),
             show_details=bool(kwargs.get("show_details", False)),
             verbose=bool(kwargs.get("verbose", False)),

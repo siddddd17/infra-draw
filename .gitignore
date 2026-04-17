@@ -1,2 +1,6 @@
 .DS_Store
 output/
+# Python bytecode
+__pycache__/
+*.py[cod]
+
