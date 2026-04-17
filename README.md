@@ -18,7 +18,7 @@ publication-ready architecture diagrams using the
 | **Tag filtering** | `--exclude-tags env=dev` to skip resources by tag |
 | **Per-VPC diagrams** | `--per-vpc` generates one diagram per VPC |
 | **Multi-region** | `--all-regions` scans every enabled region |
-| **Output formats** | PNG, SVG, PDF (Graphviz) + JSON, Draw.io, Mermaid, PlantUML, Terraform |
+| **Output formats** | PNG, SVG, PDF (Graphviz) + JSON, Draw.io, Mermaid, PlantUML, Terraform, Raw JSON |
 | **Detail labels** | `--show-details` adds IPs, instance types, CIDRs to nodes |
 | **Dry run** | `--dry-run` fetches without generating images |
 
@@ -110,6 +110,7 @@ infra-draw generate --format drawio
 infra-draw generate --format mermaid
 infra-draw generate --format plantuml
 infra-draw generate --format terraform
+infra-draw generate --format raw --all-regions   # full boto3 dump for every region
 
 # Dry run (discover but don't render)
 infra-draw generate --dry-run --verbose

@@ -51,6 +51,24 @@ EDGE_HEX: Dict[str, str] = {
     "orange": "#ED7100",
 }
 
+TYPE_ORDER = {
+    "vpc": 0,
+    "igw": 1,
+    "natgw": 1,
+    "alb": 2,
+    "nlb": 2,
+    "subnet": 3,
+    "routetable": 4,
+    "ec2": 5,
+    "lambda": 5,
+    "rds": 6,
+    "dynamodb": 7,
+    "s3": 7,
+    "iam": 8,
+    "vpc_peering": 8,
+    "tgw": 8,
+}
+
 
 def _node_style(resource_type: str) -> str:
     fill, font = AWS_COLORS.get(resource_type, ("#E8E8E8", "#000000"))
@@ -97,29 +115,39 @@ class _LayoutEngine:
     def _layout_cluster(self, cluster: GraphCluster, nodes: List[GraphNode]) -> None:
         if not nodes:
             return
-        cols = max(3, int(len(nodes) ** 0.5) + 1)
-        rows = (len(nodes) + cols - 1) // cols
+        # Architecture-oriented layout: group by resource type rows.
+        # This keeps network, compute, and data nodes visually separated.
+        sorted_nodes = sorted(nodes, key=lambda n: (TYPE_ORDER.get(n.resource_type, 99), n.label))
+        by_row: Dict[int, List[GraphNode]] = {}
+        for node in sorted_nodes:
+            row = TYPE_ORDER.get(node.resource_type, 99)
+            by_row.setdefault(row, []).append(node)
 
-        inner_w = cols * NODE_W + (cols - 1) * COL_GAP
-        inner_h = rows * NODE_H + (rows - 1) * ROW_GAP
+        row_keys = sorted(by_row.keys())
+        cols = max((len(v) for v in by_row.values()), default=1)
+        rows = len(row_keys)
+
+        inner_w = cols * NODE_W + max(cols - 1, 0) * COL_GAP
+        inner_h = rows * NODE_H + max(rows - 1, 0) * ROW_GAP
         cw = inner_w + 2 * PAD
         ch = inner_h + 2 * PAD + CLUSTER_HEADER
 
         cx, cy = PAD, self._next_y
         self._cluster_bounds[cluster.id] = (cx, cy, cw, ch)
 
-        for idx, node in enumerate(nodes):
-            col = idx % cols
-            row = idx // cols
-            nx = cx + PAD + col * (NODE_W + COL_GAP)
-            ny = cy + CLUSTER_HEADER + PAD + row * (NODE_H + ROW_GAP)
-            self._node_positions[node.id] = (nx, ny)
+        for row_idx, row_key in enumerate(row_keys):
+            row_nodes = by_row[row_key]
+            for col, node in enumerate(row_nodes):
+                nx = cx + PAD + col * (NODE_W + COL_GAP)
+                ny = cy + CLUSTER_HEADER + PAD + row_idx * (NODE_H + ROW_GAP)
+                self._node_positions[node.id] = (nx, ny)
 
         self._next_y = cy + ch + PAD
 
     def _layout_standalone(self, nodes: List[GraphNode]) -> None:
-        cols = max(4, int(len(nodes) ** 0.5) + 1)
-        for idx, node in enumerate(nodes):
+        sorted_nodes = sorted(nodes, key=lambda n: (TYPE_ORDER.get(n.resource_type, 99), n.label))
+        cols = max(4, int(len(sorted_nodes) ** 0.5) + 1)
+        for idx, node in enumerate(sorted_nodes):
             col = idx % cols
             row = idx // cols
             nx = PAD + col * (NODE_W + COL_GAP)
@@ -151,6 +179,7 @@ def _build_xml(graph: InfraGraph) -> bytes:
     cell_counter = 2
     cluster_cell_map: Dict[str, str] = {}
     node_cell_map: Dict[str, str] = {}
+    node_type_map: Dict[str, str] = {}
 
     def _next_id() -> str:
         nonlocal cell_counter
@@ -195,8 +224,10 @@ def _build_xml(graph: InfraGraph) -> bytes:
             "as": "geometry",
         })
         node_cell_map[node.id] = nid
+        node_type_map[node.id] = node.resource_type
 
     # Edges
+    seen_edges: set[tuple[str, str, str]] = set()
     for edge in graph.edges:
         eid = _next_id()
         src = node_cell_map.get(edge.source, "")
@@ -207,6 +238,17 @@ def _build_xml(graph: InfraGraph) -> bytes:
         if src == tgt:
             logger.debug("Skipping Draw.io self-referencing edge %s", edge.id)
             continue
+        # Reduce visual noise for architecture readability.
+        src_type = node_type_map.get(edge.source, "")
+        tgt_type = node_type_map.get(edge.target, "")
+        if edge.edge_type in {"route_association"}:
+            continue
+        if src_type in {"subnet", "routetable"} and tgt_type in {"subnet", "routetable"}:
+            continue
+        dedupe_key = (src, tgt, edge.edge_type or "")
+        if dedupe_key in seen_edges:
+            continue
+        seen_edges.add(dedupe_key)
         cell = SubElement(root, "mxCell", {
             "id": eid,
             "value": html.escape(edge.label) if edge.label else "",

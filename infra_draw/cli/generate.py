@@ -93,7 +93,10 @@ def generate(ctx: click.Context) -> None:
             console.print(f"[green]Discovered {total} resource(s).[/green]")
             return
 
-        if config.is_data_format:
+        if config.is_raw_format:
+            from infra_draw.diagram.builder import generate_raw_export
+            files = generate_raw_export(provider, config)
+        elif config.is_data_format:
             from infra_draw.diagram.builder import generate_exports
             files = generate_exports(provider, config)
         else:

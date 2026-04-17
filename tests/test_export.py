@@ -469,7 +469,7 @@ class TestExporterRegistry:
 
 class TestConfigFormats:
     def test_is_data_format(self):
-        for fmt in ("json", "drawio", "mermaid", "plantuml", "terraform"):
+        for fmt in ("json", "drawio", "mermaid", "plantuml", "terraform", "raw"):
             cfg = _cfg(output_format=fmt)
             assert cfg.is_data_format is True
 
@@ -477,3 +477,57 @@ class TestConfigFormats:
         for fmt in ("png", "svg", "pdf"):
             cfg = _cfg(output_format=fmt)
             assert cfg.is_data_format is False
+
+    def test_is_raw_format(self):
+        assert _cfg(output_format="raw").is_raw_format is True
+        for fmt in ("json", "drawio", "mermaid", "plantuml", "terraform", "png"):
+            assert _cfg(output_format=fmt).is_raw_format is False
+
+
+# ======================================================================
+# Raw JSON exporter
+# ======================================================================
+
+class TestRawJsonExporter:
+    def test_raw_export_writes_aggregated_file(self):
+        import datetime as dt
+        from infra_draw.export.raw_json import export_raw
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg = _cfg(output_format="raw", output_dir=Path(tmpdir), profile="demo")
+            resources = _sample_resources()
+            regions_data = {
+                "us-east-1": resources,
+                "eu-west-1": {
+                    "ec2": [{"InstanceId": "i-eu", "LaunchTime": dt.datetime(2024, 1, 1, 12, 0, 0)}],
+                },
+            }
+
+            path = export_raw(cfg, regions_data, account_id="123456789012")
+            assert path.endswith("aws-raw-all-regions.json")
+            with open(path) as f:
+                payload = json.load(f)
+
+            assert payload["provider"] == "aws"
+            assert payload["account_id"] == "123456789012"
+            assert payload["profile"] == "demo"
+            assert payload["region_count"] == 2
+            assert set(payload["regions"].keys()) == {"us-east-1", "eu-west-1"}
+            assert payload["total_resources"] > 0
+            assert payload["regions"]["eu-west-1"]["ec2"][0]["LaunchTime"].startswith("2024-01-01")
+
+    def test_raw_export_handles_bytes_and_sets(self):
+        from infra_draw.export.raw_json import export_raw
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg = _cfg(output_format="raw", output_dir=Path(tmpdir))
+            regions_data = {
+                "us-east-1": {
+                    "misc": [{"blob": b"hello", "tags": {"a", "b"}}],
+                },
+            }
+            path = export_raw(cfg, regions_data)
+            with open(path) as f:
+                payload = json.load(f)
+            assert payload["regions"]["us-east-1"]["misc"][0]["blob"] == "hello"
+            assert payload["regions"]["us-east-1"]["misc"][0]["tags"] == ["a", "b"]

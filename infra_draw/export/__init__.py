@@ -7,7 +7,8 @@ from typing import Dict, Type
 from infra_draw.export.graph import InfraGraph
 
 IMAGE_FORMATS = {"png", "svg", "pdf"}
-DATA_FORMATS = {"json", "drawio", "mermaid", "plantuml", "terraform"}
+DATA_FORMATS = {"json", "drawio", "mermaid", "plantuml", "terraform", "raw"}
+RAW_FORMATS = {"raw"}
 ALL_FORMATS = IMAGE_FORMATS | DATA_FORMATS
 
 

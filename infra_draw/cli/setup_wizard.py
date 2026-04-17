@@ -381,7 +381,7 @@ class SetupWizard:
         *,
         profile: str,
         region: str,
-        fmt: str = "png",
+        fmt: str = "drawio",
         resources: Optional[List[str]] = None,
         per_vpc: bool = False,
         show_details: bool = False,
@@ -433,7 +433,10 @@ class SetupWizard:
                 return
 
             t0 = time.monotonic()
-            if config.is_data_format:
+            if config.is_raw_format:
+                from infra_draw.diagram.builder import generate_raw_export
+                files = generate_raw_export(provider, config)
+            elif config.is_data_format:
                 from infra_draw.diagram.builder import generate_exports
                 files = generate_exports(provider, config)
             else:
@@ -469,8 +472,8 @@ class SetupWizard:
         show_details = Confirm.ask("Show details (IPs, instance types)?", default=False)
         fmt = Prompt.ask(
             "Output format",
-            choices=["png", "svg", "pdf", "json", "drawio", "mermaid", "plantuml", "terraform"],
-            default="png",
+            choices=["png", "svg", "pdf", "json", "drawio", "mermaid", "plantuml", "terraform", "raw"],
+            default="drawio",
         )
         output_dir = Prompt.ask("Output directory", default="output")
 

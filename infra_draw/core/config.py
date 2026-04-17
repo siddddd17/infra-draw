@@ -21,7 +21,7 @@ class InfraDrawConfig:
     exclude_tags: Dict[str, str] = field(default_factory=dict)
 
     output_dir: Path = field(default_factory=lambda: Path("output"))
-    output_format: str = "png"
+    output_format: str = "drawio"
     per_vpc: bool = False
     show_details: bool = False
 
@@ -63,7 +63,7 @@ class InfraDrawConfig:
             resource_types=list(kwargs.get("resources") or []),
             exclude_tags=exclude_tags,
             output_dir=Path(str(kwargs.get("output_dir", os.getenv("INFRA_DRAW_OUTPUT", "output")))),
-            output_format=str(kwargs.get("format", "png")),
+            output_format=str(kwargs.get("format", "drawio")),
             per_vpc=bool(kwargs.get("per_vpc", False)),
             show_details=bool(kwargs.get("show_details", False)),
             verbose=bool(kwargs.get("verbose", False)),
@@ -72,11 +72,16 @@ class InfraDrawConfig:
         )
 
     IMAGE_FORMATS = {"png", "svg", "pdf"}
-    DATA_FORMATS = {"json", "drawio", "mermaid", "plantuml", "terraform"}
+    DATA_FORMATS = {"json", "drawio", "mermaid", "plantuml", "terraform", "raw"}
+    RAW_FORMATS = {"raw"}
 
     @property
     def is_data_format(self) -> bool:
         return self.output_format in self.DATA_FORMATS
+
+    @property
+    def is_raw_format(self) -> bool:
+        return self.output_format in self.RAW_FORMATS
 
     @property
     def available_resource_types(self) -> Set[str]:

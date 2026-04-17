@@ -37,8 +37,8 @@ def show_banner() -> None:
 )
 @click.option("--output-dir", "-o", default="output", help="Directory for generated files.")
 @click.option(
-    "--format", "-f", "fmt", default="png",
-    type=click.Choice(["png", "svg", "pdf", "json", "drawio", "mermaid", "plantuml", "terraform"]),
+    "--format", "-f", "fmt", default="drawio",
+    type=click.Choice(["png", "svg", "pdf", "json", "drawio", "mermaid", "plantuml", "terraform", "raw"]),
     help="Output format (image or data export).",
 )
 @click.option("--per-vpc", is_flag=True, help="One diagram per VPC.")

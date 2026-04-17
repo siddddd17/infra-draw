@@ -52,7 +52,7 @@ class ShellState:
         self.region: str = str(initial.get("region", "us-east-1"))
         self.profile: Optional[str] = initial.get("profile")  # type: ignore[assignment]
         self.output_dir: str = str(initial.get("output_dir", "output"))
-        self.fmt: str = str(initial.get("fmt", "png"))
+        self.fmt: str = str(initial.get("fmt", "drawio"))
         self.per_vpc: bool = bool(initial.get("per_vpc", False))
         self.show_details: bool = bool(initial.get("show_details", False))
         self.verbose: bool = bool(initial.get("verbose", False))
@@ -84,7 +84,7 @@ def _print_help() -> None:
     table.add_row("generate", "Fetch resources and create diagrams with current settings")
     table.add_row("set provider <aws|azure|gcp>", "Change cloud provider")
     table.add_row("set region <name>", "Change target region")
-    table.add_row("set format <png|svg|pdf|json|drawio|mermaid|plantuml|terraform>", "Change output format")
+    table.add_row("set format <png|svg|pdf|json|drawio|mermaid|plantuml|terraform|raw>", "Change output format")
     table.add_row("set output-dir <path>", "Change output directory")
     table.add_row("set profile <name>", "Change AWS CLI profile")
     table.add_row("set per-vpc <on|off>", "Toggle per-VPC diagrams")
@@ -129,7 +129,7 @@ def _handle_set(state: ShellState, parts: List[str]) -> None:
     elif key == "region":
         state.region = value
     elif key == "format":
-        valid = ("png", "svg", "pdf", "json", "drawio", "mermaid", "plantuml", "terraform")
+        valid = ("png", "svg", "pdf", "json", "drawio", "mermaid", "plantuml", "terraform", "raw")
         if value not in valid:
             console.print(f"[red]Valid formats: {', '.join(valid)}[/red]")
             return
@@ -195,14 +195,21 @@ def _handle_generate(state: ShellState) -> None:
     try:
         import infra_draw.providers  # noqa: F401
         from infra_draw.core.provider import ProviderFactory
-        from infra_draw.diagram.builder import fetch_all, generate_diagrams, generate_exports
+        from infra_draw.diagram.builder import (
+            fetch_all,
+            generate_diagrams,
+            generate_exports,
+            generate_raw_export,
+        )
 
         provider = ProviderFactory.get(config.provider, config)
         console.print("[cyan]Validating credentials …[/cyan]")
         provider.validate_credentials(config)
 
         t0 = time.monotonic()
-        if config.is_data_format:
+        if config.is_raw_format:
+            files = generate_raw_export(provider, config)
+        elif config.is_data_format:
             files = generate_exports(provider, config)
         else:
             files = generate_diagrams(provider, config)

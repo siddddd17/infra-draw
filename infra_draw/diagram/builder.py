@@ -138,3 +138,39 @@ def generate_exports(
             output_files.append(exporter.export(graph, path))
 
     return output_files
+
+
+def generate_raw_export(
+    provider: CloudProvider,
+    config: InfraDrawConfig,
+) -> List[str]:
+    """Fetch every region and write one aggregated raw-JSON file."""
+    from infra_draw.export.raw_json import export_raw
+
+    regions = provider.list_regions(config)
+    regions_data: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
+
+    for region in regions:
+        rcfg = _region_config(config, region)
+        fetchers = provider.get_fetchers(rcfg)
+        resources = fetch_all(fetchers, rcfg)
+
+        if any(resources.values()):
+            regions_data[region] = resources
+
+    if not regions_data:
+        logger.warning("No resources discovered across any region – nothing to export")
+        return []
+
+    account_id: str | None = None
+    try:
+        import boto3
+        sess_kwargs: Dict[str, Any] = {}
+        if config.profile:
+            sess_kwargs["profile_name"] = config.profile
+        account_id = boto3.Session(**sess_kwargs).client("sts").get_caller_identity()["Account"]
+    except Exception as exc:
+        logger.debug("Could not resolve account id for raw export: %s", exc)
+
+    path = export_raw(config, regions_data, account_id=account_id)
+    return [path]
